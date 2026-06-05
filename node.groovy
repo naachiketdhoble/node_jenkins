@@ -1,26 +1,35 @@
 pipeline {
     agent any
+    
+    tools {
+        nodejs 'Node_js'
+    }
 
     environment {
+        IMAGE_NAME = "node-demo-app"
         DOCKER_REPO = "naachiketdhoble020904/node-demo-sample"
         CONTAINER_NAME = "node-demo-container"
     }
 
     stages {
-
-        stage('Checkout') {
+        stage('checkout') {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/naachiketdhoble/node_app.git'
             }
         }
-
+    
         stage('Verify Environment') {
             steps {
                 sh '''
-                    node -v
-                    npm -v
-                    docker --version
+                echo "Node Version:"
+                node -v
+
+                echo "NPM Version:"
+                npm -v
+
+                echo "Docker Version:"
+                docker --version
                 '''
             }
         }
@@ -39,7 +48,9 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t ${DOCKER_REPO}:${BUILD_NUMBER} .'
+                sh '''
+                docker build -t ${DOCKER_REPO}:${BUILD_NUMBER} .
+                '''
             }
         }
 
@@ -49,31 +60,31 @@ pipeline {
                     usernamePassword(
                         credentialsId: 'dockerhub-creds',
                         usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
+                        passwordVariable: 'DOCKER_PASSORD'
                     )
                 ]) {
-                    sh '''
-                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                    '''
+                    sh 'docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}'
                 }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                sh 'docker push ${DOCKER_REPO}:${BUILD_NUMBER}'
+                sh '''
+                docker push ${DOCKER_REPO}:${BUILD_NUMBER}
+                '''
             }
         }
 
         stage('Deploy Container') {
             steps {
                 sh '''
-                    docker rm -f ${CONTAINER_NAME} || true
+                docker rm -f ${CONTAINER_NAME} || true
 
-                    docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        -p 3000:3000 \
-                        ${DOCKER_REPO}:${BUILD_NUMBER}
+                docker run -d \
+                --name ${CONTAINER_NAME} \
+                -p 3000:3000 \
+                ${DOCKER_REPO}:${BUILD_NUMBER}
                 '''
             }
         }
